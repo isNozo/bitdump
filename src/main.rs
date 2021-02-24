@@ -80,22 +80,43 @@ fn dump_header(buffer : &[u8]) -> &[u8] {
     println!("  key   : {}", key);
     println!("  length: 0x{:04x}", length);
 
+    println!("");
+
     rest
 }
 
 fn dump(buffer : &[u8]) {
-    let rest = dump_header(buffer);
+    /* 
+     * Dump header
+     */
+    let body = dump_header(buffer);
+    let body_len = body.len();
 
     /* 
-     * Read body.
+     * Dump body
      */
     let mut cnt = 0;
-    for byte in rest {
-        if cnt % 4 == 0 {
-            print!("\n{:08x}", cnt);
+    let mut zeros_cnt = 0;
+
+    while cnt < body_len {
+        // read 4 bytes
+        let value = read_u32(&body[cnt..]);
+        
+        if value == 0 {
+            zeros_cnt += 1;
+        } else {
+            zeros_cnt = 0;
         }
-        print!(" {:02x}", byte);
-        cnt += 1;
+
+        if zeros_cnt < 4 {
+            println!("{:08x} : {:08x}", cnt, value);
+        } else if zeros_cnt == 4 {
+            // Ignore contiguous zeros
+            println!("...");
+        }
+
+        // next 4 bytes
+        cnt += 4;
     }
     print!("\n");
 }
