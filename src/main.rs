@@ -33,7 +33,7 @@ fn dump_header(buffer : &[u8]) -> &[u8] {
 
     let length = read_u16(rest) as usize;
     let (value, rest) = read_n_byte(&rest[2..], length);
-    println!("Field 1");
+    println!("Field 1 (some sort of header)");
     println!("  length: 0x{:04x}", length);
     println!("  value : {:02x?}", value);
 
@@ -45,14 +45,14 @@ fn dump_header(buffer : &[u8]) -> &[u8] {
 
     let length = read_u16(rest) as usize;
     let (value, rest) = read_n_byte(&rest[2..], length);
-    println!("Field 3");
+    println!("Field 3 (NCD name)");
     println!("  length: 0x{:04x}", length);
     println!("  value : {}", str::from_utf8(value).unwrap());
 
     let key = rest[0] as char;
     let length = read_u16(&rest[1..]) as usize;
     let (value, rest) = read_n_byte(&rest[3..], length);
-    println!("Field 4");
+    println!("Field 4 (model/part number)");
     println!("  key   : {}", key);
     println!("  length: 0x{:04x}", length);
     println!("  value : {}", str::from_utf8(value).unwrap());
@@ -60,7 +60,7 @@ fn dump_header(buffer : &[u8]) -> &[u8] {
     let key = rest[0] as char;
     let length = read_u16(&rest[1..]) as usize;
     let (value, rest) = read_n_byte(&rest[3..], length);
-    println!("Field 5");
+    println!("Field 5 (built date)");
     println!("  key   : {}", key);
     println!("  length: 0x{:04x}", length);
     println!("  value : {}", str::from_utf8(value).unwrap());
@@ -68,7 +68,7 @@ fn dump_header(buffer : &[u8]) -> &[u8] {
     let key = rest[0] as char;
     let length = read_u16(&rest[1..]) as usize;
     let (value, rest) = read_n_byte(&rest[3..], length);
-    println!("Field 6");
+    println!("Field 6 (built time)");
     println!("  key   : {}", key);
     println!("  length: 0x{:04x}", length);
     println!("  value : {}", str::from_utf8(value).unwrap());
@@ -76,9 +76,9 @@ fn dump_header(buffer : &[u8]) -> &[u8] {
     let key = rest[0] as char;
     let length = read_u32(&rest[1..]) as usize;
     let rest = &rest[5..];
-    println!("Field 7");
+    println!("Field 7 (data length)");
     println!("  key   : {}", key);
-    println!("  length: 0x{:04x}", length);
+    println!("  length: 0x{:08x}", length);
 
     println!("");
 
