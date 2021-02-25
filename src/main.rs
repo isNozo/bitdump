@@ -95,30 +95,32 @@ fn dump(buffer : &[u8]) {
     /* 
      * Dump body
      */
-    let mut cnt = 0;
-    let mut zeros_cnt = 0;
+    let mut bytes_cnt = 0;
+    let mut duplicates_cnt = 0;
+    let mut prev_value = 0;
 
-    while cnt < body_len {
+    while bytes_cnt < body_len {
         // read 4 bytes
-        let value = read_u32(&body[cnt..]);
+        let value = read_u32(&body[bytes_cnt..]);
         
-        if value == 0 {
-            zeros_cnt += 1;
+        if value == prev_value {
+            duplicates_cnt += 1;
         } else {
-            zeros_cnt = 0;
+            duplicates_cnt = 0;
         }
 
-        if zeros_cnt < 4 {
-            println!("{:08x} : {:08x}", cnt, value);
-        } else if zeros_cnt == 4 {
-            // Ignore contiguous zeros
-            println!("...");
+        if duplicates_cnt < 4 {
+            println!("{:08x} : {:08x}", bytes_cnt, value);
+        } else if duplicates_cnt == 4 {
+            // Ignore duplicate bytes
+            println!("*");
         }
 
-        // next 4 bytes
-        cnt += 4;
+        prev_value = value;
+        bytes_cnt += 4;
     }
-    print!("\n");
+
+    println!("{:08x} bytes are read.", bytes_cnt);
 }
 
 fn main() -> io::Result<()> {
