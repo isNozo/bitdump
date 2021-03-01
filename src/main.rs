@@ -4,6 +4,34 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::str;
 
+const HEADER_TYPE1 : u32 = 0b001;
+const HEADER_TYPE2 : u32 = 0b010;
+
+const OP_NOP   : u32 = 0b00;
+const OP_READ  : u32 = 0b01;
+const OP_WRITE : u32 = 0b10;
+
+const REG_CRC : u32 = 0b00000;
+const REG_FAR : u32 = 0b00001;
+const REG_FDRI : u32 = 0b00010;
+const REG_FDRO : u32 = 0b00011;
+const REG_CMD : u32 = 0b00100;
+const REG_CTL0 : u32 = 0b00101;
+const REG_MASK : u32 = 0b00110;
+const REG_STAT : u32 = 0b00111;
+const REG_LOUT : u32 = 0b01000;
+const REG_COR0 : u32 = 0b01001;
+const REG_MFWR : u32 = 0b01010;
+const REG_CBC : u32 = 0b01011;
+const REG_IDCODE : u32 = 0b01100;
+const REG_AXSS : u32 = 0b01101;
+const REG_COR1 : u32 = 0b01110;
+const REG_WBSTAR : u32 = 0b10000;
+const REG_TIMER : u32 = 0b10001;
+const REG_BOOTSTS : u32 = 0b10110;
+const REG_CTL1 : u32 = 0b11000;
+const REG_BSPI : u32 = 0b11111;
+
 fn read_u16(buffer : &[u8]) -> u16 {
     let mut ret : u16 = 0;
     for i in 0..2 {
@@ -85,6 +113,13 @@ fn dump_header(buffer : &[u8]) -> &[u8] {
     rest
 }
 
+fn get_bitfield(value : u32, start_bit : u8, end_bit : u8) -> u32 {
+    let length = end_bit - start_bit + 1;
+    let mask = !(!0 << length);
+    let ret = (value >> start_bit) & mask;
+    ret
+}
+
 fn dump(buffer : &[u8]) {
     /* 
      * Dump header
@@ -110,7 +145,56 @@ fn dump(buffer : &[u8]) {
         }
 
         if duplicates_cnt < 4 {
-            println!("{:08x} : {:08x}", bytes_cnt, value);
+            print!("{:08x} : {:032b} ", bytes_cnt, value);
+
+            let header_type = get_bitfield(value, 29, 31);
+            match header_type {
+                HEADER_TYPE1 => {
+                    print!("TYPE   1 ");
+                    let op = get_bitfield(value, 27, 28);
+                    match op {
+                        OP_NOP   => print!("NOP   "),
+                        OP_READ  => print!("READ  "),
+                        OP_WRITE => print!("WRITE "),
+                        _        => print!("InvOP ")
+                    }
+
+                    let reg = get_bitfield(value, 13, 26);
+                    print!("({:05b}) ", reg);
+                    match reg {
+                        REG_CRC     => print!("CRC     "),
+                        REG_FAR     => print!("FAR     "),
+                        REG_FDRI    => print!("FDRI    "),
+                        REG_FDRO    => print!("FDRO    "),
+                        REG_CMD     => print!("CMD     "),
+                        REG_CTL0    => print!("CTL0    "),
+                        REG_MASK    => print!("MASK    "),
+                        REG_STAT    => print!("STAT    "),
+                        REG_LOUT    => print!("LOUT    "),
+                        REG_COR0    => print!("COR0    "),
+                        REG_MFWR    => print!("MFWR    "),
+                        REG_CBC     => print!("CBC     "),
+                        REG_IDCODE  => print!("IDCODE  "),
+                        REG_AXSS    => print!("AXSS    "),
+                        REG_COR1    => print!("COR1    "),
+                        REG_WBSTAR  => print!("WBSTAR  "),
+                        REG_TIMER   => print!("TIMER   "),
+                        REG_BOOTSTS => print!("BOOTSTS "),
+                        REG_CTL1    => print!("CTL1    "),
+                        REG_BSPI    => print!("BSPI    "),
+                        _           => print!("Inv reg "),
+                    }
+
+                    let word_cnt = get_bitfield(value, 0, 10);
+                    print!("word_cnt={} ", word_cnt);
+                }
+                HEADER_TYPE2 => {
+                    print!("TYPE   2 ");
+                }
+                _ => print!("TYPE Inv ")
+            }
+            println!("");
+
         } else if duplicates_cnt == 4 {
             // Ignore duplicate bytes
             println!("*");
