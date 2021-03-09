@@ -139,6 +139,31 @@ fn dump_header(buffer: &[u8]) -> &[u8] {
     rest
 }
 
+fn dump_n_word(buffer: &[u8], n: usize, offset: usize) {
+    let mut bytes_cnt = offset;
+    let mut duplicates_cnt = 0;
+    let mut prev_value = 0;
+
+    while bytes_cnt < offset + n {
+        // read 4 bytes
+        let value = read_u32(&buffer[bytes_cnt..]);
+        if value == prev_value {
+            duplicates_cnt += 1;
+        } else {
+            duplicates_cnt = 0;
+        }
+        prev_value = value;
+        bytes_cnt += 4;
+
+        if duplicates_cnt < 4 {
+            println!("{:08x} : {:08x} ", bytes_cnt-4, value);
+        } else if duplicates_cnt == 4 {
+            // Ignore duplicate bytes
+            println!("*");
+        }
+    }
+}
+
 fn dump(buffer: &[u8]) {
     /*
      * Dump header
@@ -205,12 +230,20 @@ fn dump(buffer: &[u8]) {
                     }
 
                     let word_cnt = value & MASK_WORDCOUNT_TYPE1;
-                    print!("word_cnt={} ", word_cnt);
+                    println!("word_cnt={}", word_cnt);
+                    dump_n_word(&body, word_cnt as usize, bytes_cnt);
+                    bytes_cnt += 4 * word_cnt as usize;
+
+                    continue;
                 }
                 HEADER_TYPE2 => {
                     print!("Type2 ");
+
                     let word_cnt = value & MASK_WORDCOUNT_TYPE2;
-                    print!("word_cnt={} ", word_cnt);
+                    println!("word_cnt={}", word_cnt);
+                    dump_n_word(&body, word_cnt as usize, bytes_cnt);
+                    bytes_cnt += 4 * word_cnt as usize;
+                    continue;
                 }
                 _ => print!("InvTYPE"),
             }
@@ -221,7 +254,7 @@ fn dump(buffer: &[u8]) {
         }
     }
 
-    println!("{:08x} bytes are read.", bytes_cnt);
+    println!("{:08x} bytes were read.", bytes_cnt);
 }
 
 fn main() -> io::Result<()> {
