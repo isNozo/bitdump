@@ -4,33 +4,58 @@ use std::io;
 use std::io::prelude::*;
 use std::str;
 
-const HEADER_TYPE1: u32 = 0b001;
-const HEADER_TYPE2: u32 = 0b010;
+/* 
+ * Configuration Packet
+ * 
+ * Type1:
+ * +-------------+---------+------------------+----------+-------------+
+ * | Header Type | Opecode | Register Address | Reserved | Word Count  |
+ * | [31:29]     | [28:27] | [26:13]          | [12:11]  | [10:0]      |
+ * +-------------+---------+------------------+----------+-------------+
+ * | 001         | xx      | RRRRRRRRRxxxxx   | RR       | xxxxxxxxxxx |
+ * +-------------+---------+------------------+----------+-------------+
+ * 
+ * Type2:
+ * +-------------+---------+-----------------------------+
+ * | Header Type | Opecode | Word Count                  |
+ * | [31:29]     | [28:27] | [26:0]                      |
+ * +-------------+---------+-----------------------------+
+ * | 010         | RR      | xxxxxxxxxxxxxxxxxxxxxxxxxxx |
+ * +-------------+---------+-----------------------------+
+ */
 
-const OP_NOP: u32   = 0b00;
-const OP_READ: u32  = 0b01;
-const OP_WRITE: u32 = 0b10;
+const MASK_HEADER_TYPE: u32 = 0b111 << 29;
+const HEADER_TYPE1: u32     = 0b001 << 29;
+const HEADER_TYPE2: u32     = 0b010 << 29;
 
-const REG_CRC: u32     = 0b00000;
-const REG_FAR: u32     = 0b00001;
-const REG_FDRI: u32    = 0b00010;
-const REG_FDRO: u32    = 0b00011;
-const REG_CMD: u32     = 0b00100;
-const REG_CTL0: u32    = 0b00101;
-const REG_MASK: u32    = 0b00110;
-const REG_STAT: u32    = 0b00111;
-const REG_LOUT: u32    = 0b01000;
-const REG_COR0: u32    = 0b01001;
-const REG_MFWR: u32    = 0b01010;
-const REG_CBC: u32     = 0b01011;
-const REG_IDCODE: u32  = 0b01100;
-const REG_AXSS: u32    = 0b01101;
-const REG_COR1: u32    = 0b01110;
-const REG_WBSTAR: u32  = 0b10000;
-const REG_TIMER: u32   = 0b10001;
-const REG_BOOTSTS: u32 = 0b10110;
-const REG_CTL1: u32    = 0b11000;
-const REG_BSPI: u32    = 0b11111;
+const MASK_OP:u32   = 0b11 << 27;
+const OP_NOP: u32   = 0b00 << 27;
+const OP_READ: u32  = 0b01 << 27;
+const OP_WRITE: u32 = 0b10 << 27;
+
+const MASK_REG: u32    = 0b11111 << 13;
+const REG_CRC: u32     = 0b00000 << 13;
+const REG_FAR: u32     = 0b00001 << 13;
+const REG_FDRI: u32    = 0b00010 << 13;
+const REG_FDRO: u32    = 0b00011 << 13;
+const REG_CMD: u32     = 0b00100 << 13;
+const REG_CTL0: u32    = 0b00101 << 13;
+const REG_MASK: u32    = 0b00110 << 13;
+const REG_STAT: u32    = 0b00111 << 13;
+const REG_LOUT: u32    = 0b01000 << 13;
+const REG_COR0: u32    = 0b01001 << 13;
+const REG_MFWR: u32    = 0b01010 << 13;
+const REG_CBC: u32     = 0b01011 << 13;
+const REG_IDCODE: u32  = 0b01100 << 13;
+const REG_AXSS: u32    = 0b01101 << 13;
+const REG_COR1: u32    = 0b01110 << 13;
+const REG_WBSTAR: u32  = 0b10000 << 13;
+const REG_TIMER: u32   = 0b10001 << 13;
+const REG_BOOTSTS: u32 = 0b10110 << 13;
+const REG_CTL1: u32    = 0b11000 << 13;
+const REG_BSPI: u32    = 0b11111 << 13;
+
+const MASK_WORDCOUNT: u32 = 0b1111111111;
 
 fn read_u16(buffer: &[u8]) -> u16 {
     let mut ret: u16 = 0;
@@ -113,13 +138,6 @@ fn dump_header(buffer: &[u8]) -> &[u8] {
     rest
 }
 
-fn get_bitfield(value: u32, start_bit: u8, end_bit: u8) -> u32 {
-    let length = end_bit - start_bit + 1;
-    let mask = !(!0 << length);
-    let ret = (value >> start_bit) & mask;
-    ret
-}
-
 fn dump(buffer: &[u8]) {
     /*
      * Dump header
@@ -144,22 +162,21 @@ fn dump(buffer: &[u8]) {
         }
 
         if duplicates_cnt < 4 {
-            print!("{:08x} : {:032b} ", bytes_cnt, value);
+            print!("{:08x} : {:08x} ", bytes_cnt, value);
 
-            let header_type = get_bitfield(value, 29, 31);
+            let header_type = value & MASK_HEADER_TYPE;
             match header_type {
                 HEADER_TYPE1 => {
-                    print!("TYPE   1 ");
-                    let op = get_bitfield(value, 27, 28);
+                    print!("Type1 ");
+                    let op = value & MASK_OP;
                     match op {
-                        OP_NOP => print!("NOP   "),
-                        OP_READ => print!("READ  "),
+                        OP_NOP   => print!("NOOP  "),
+                        OP_READ  => print!("READ  "),
                         OP_WRITE => print!("WRITE "),
-                        _ => print!("InvOP "),
+                        _        => print!("InvOP "),
                     }
 
-                    let reg = get_bitfield(value, 13, 26);
-                    print!("({:05b}) ", reg);
+                    let reg = value & MASK_REG;
                     match reg {
                         REG_CRC     => print!("CRC     "),
                         REG_FAR     => print!("FAR     "),
@@ -181,16 +198,16 @@ fn dump(buffer: &[u8]) {
                         REG_BOOTSTS => print!("BOOTSTS "),
                         REG_CTL1    => print!("CTL1    "),
                         REG_BSPI    => print!("BSPI    "),
-                        _           => print!("Inv reg "),
+                        _           => print!("InvREG  "),
                     }
 
-                    let word_cnt = get_bitfield(value, 0, 10);
+                    let word_cnt = value & MASK_WORDCOUNT;
                     print!("word_cnt={} ", word_cnt);
                 }
                 HEADER_TYPE2 => {
-                    print!("TYPE   2 ");
+                    print!("Type2 ");
                 }
-                _ => print!("TYPE Inv "),
+                _ => print!("InvTYPE"),
             }
             println!("");
         } else if duplicates_cnt == 4 {
