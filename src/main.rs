@@ -55,7 +55,8 @@ const REG_BOOTSTS: u32 = 0b10110 << 13;
 const REG_CTL1: u32    = 0b11000 << 13;
 const REG_BSPI: u32    = 0b11111 << 13;
 
-const MASK_WORDCOUNT: u32 = 0b1111111111;
+const MASK_WORDCOUNT_TYPE1: u32 = 0b1111111111;
+const MASK_WORDCOUNT_TYPE2: u32 = 0b111111111111111111111111111;
 
 fn read_u16(buffer: &[u8]) -> u16 {
     let mut ret: u16 = 0;
@@ -160,9 +161,11 @@ fn dump(buffer: &[u8]) {
         } else {
             duplicates_cnt = 0;
         }
+        prev_value = value;
+        bytes_cnt += 4;
 
         if duplicates_cnt < 4 {
-            print!("{:08x} : {:08x} ", bytes_cnt, value);
+            print!("{:08x} : {:08x} ", bytes_cnt-4, value);
 
             let header_type = value & MASK_HEADER_TYPE;
             match header_type {
@@ -170,7 +173,7 @@ fn dump(buffer: &[u8]) {
                     print!("Type1 ");
                     let op = value & MASK_OP;
                     match op {
-                        OP_NOP   => print!("NOOP  "),
+                        OP_NOP   => { println!("NOOP"); continue; },
                         OP_READ  => print!("READ  "),
                         OP_WRITE => print!("WRITE "),
                         _        => print!("InvOP "),
@@ -201,11 +204,13 @@ fn dump(buffer: &[u8]) {
                         _           => print!("InvREG  "),
                     }
 
-                    let word_cnt = value & MASK_WORDCOUNT;
+                    let word_cnt = value & MASK_WORDCOUNT_TYPE1;
                     print!("word_cnt={} ", word_cnt);
                 }
                 HEADER_TYPE2 => {
                     print!("Type2 ");
+                    let word_cnt = value & MASK_WORDCOUNT_TYPE2;
+                    print!("word_cnt={} ", word_cnt);
                 }
                 _ => print!("InvTYPE"),
             }
@@ -214,9 +219,6 @@ fn dump(buffer: &[u8]) {
             // Ignore duplicate bytes
             println!("*");
         }
-
-        prev_value = value;
-        bytes_cnt += 4;
     }
 
     println!("{:08x} bytes are read.", bytes_cnt);
