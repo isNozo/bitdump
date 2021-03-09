@@ -83,58 +83,42 @@ fn read_n_byte(buffer: &[u8], n: usize) -> (&[u8], &[u8]) {
  * https://github.com/file/file/blob/master/magic/Magdir/xilinx
  */
 fn dump_header(buffer: &[u8]) -> &[u8] {
+    println!("== Header Information ==");
+
     let rest = buffer;
 
+    // Field 1 (some sort of header)
+    let length = read_u16(rest) as usize;
+    let (_, rest) = read_n_byte(&rest[2..], length);
+
+    // Field 2
+    let length = read_u16(rest) as usize;
+    let (_, rest) = read_n_byte(&rest[2..], length);
+
+    // Field 3 (NCD name)
     let length = read_u16(rest) as usize;
     let (value, rest) = read_n_byte(&rest[2..], length);
-    println!("Field 1 (some sort of header)");
-    println!("  length: 0x{:04x}", length);
-    println!("  value : {:02x?}", value);
+    println!("NCD name          : {}", str::from_utf8(value).unwrap());
 
-    let length = read_u16(rest) as usize;
-    let (value, rest) = read_n_byte(&rest[2..], length);
-    println!("Field 2");
-    println!("  length: 0x{:04x}", length);
-    println!("  value : {}", str::from_utf8(value).unwrap());
-
-    let length = read_u16(rest) as usize;
-    let (value, rest) = read_n_byte(&rest[2..], length);
-    println!("Field 3 (NCD name)");
-    println!("  length: 0x{:04x}", length);
-    println!("  value : {}", str::from_utf8(value).unwrap());
-
-    let key = rest[0] as char;
+    // Field 4 (model/part number)
     let length = read_u16(&rest[1..]) as usize;
     let (value, rest) = read_n_byte(&rest[3..], length);
-    println!("Field 4 (model/part number)");
-    println!("  key   : {}", key);
-    println!("  length: 0x{:04x}", length);
-    println!("  value : {}", str::from_utf8(value).unwrap());
+    println!("model/part number : {}", str::from_utf8(value).unwrap());
 
-    let key = rest[0] as char;
+    // Field 5 (built date)
     let length = read_u16(&rest[1..]) as usize;
     let (value, rest) = read_n_byte(&rest[3..], length);
-    println!("Field 5 (built date)");
-    println!("  key   : {}", key);
-    println!("  length: 0x{:04x}", length);
-    println!("  value : {}", str::from_utf8(value).unwrap());
+    println!("built date        : {}", str::from_utf8(value).unwrap());
 
-    let key = rest[0] as char;
+    // Field 6 (built time)
     let length = read_u16(&rest[1..]) as usize;
     let (value, rest) = read_n_byte(&rest[3..], length);
-    println!("Field 6 (built time)");
-    println!("  key   : {}", key);
-    println!("  length: 0x{:04x}", length);
-    println!("  value : {}", str::from_utf8(value).unwrap());
+    println!("built time        : {}", str::from_utf8(value).unwrap());
 
-    let key = rest[0] as char;
+    // Field 7 (data length)
     let length = read_u32(&rest[1..]) as usize;
     let rest = &rest[5..];
-    println!("Field 7 (data length)");
-    println!("  key   : {}", key);
-    println!("  length: 0x{:08x}", length);
-
-    println!("");
+    println!("data length       : 0x{:08x}", length);
 
     rest
 }
@@ -174,6 +158,8 @@ fn dump(buffer: &[u8]) {
     /*
      * Dump body
      */
+    println!("\n== Configuration Data ==");
+
     let mut bytes_cnt = 0;
     let mut duplicates_cnt = 0;
     let mut prev_value = 0;
@@ -245,7 +231,7 @@ fn dump(buffer: &[u8]) {
                     bytes_cnt += 4 * word_cnt as usize;
                     continue;
                 }
-                _ => print!("InvTYPE"),
+                _ => (),
             }
             println!("");
         } else if duplicates_cnt == 4 {
